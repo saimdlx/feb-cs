@@ -9,27 +9,45 @@ Iter 1 - 9/5/26
     - Let's start by at least creating a programmed blueprint of what we want, that includes the states and the transitions for the battery
     - The next steps should be trying to get some sort of input, mock or not, and test some box logic with it using functions. 
       This could be seperate or just something we make in a class, but I prefer the functional approach.
+
+Iter 2 - 9/7/2026
+    - I want to polish what states I'll be working with before I move onto the logic for transitions, I've attempted to draw out a working
+    state machine diagram. I'll sift through the FSAE ruleset, and proq google for rules and suggestions to data types.
+
+    - I think we have a suitable state and vitals state machine, in both drawing and code.
+
+
 */
 
-#include <iostream>
-
-enum BatteryState{
+enum BatteryState {
     START,
     STANDBY,
+    PRECHARGE,
+    DRIVE,
     CHARGE,
-    DISCHARGE,
-    SHUTDOWN,
-    BADFAULT
+    SOMEFAULT,
+    SHUTDOWN
 };
 
-struct BatteryVitals{
-
+struct BatteryVitals {
+    //sensor readings
     float voltage;
+    float max_volt;
+    float min_volt;
     float current;
-    float temperature;
-    bool isFaulty;
+    float max_temp;
+    
+    //inputs
+    float volt_cap;
+    bool start_cmd;
+    bool charge_cmd;
+
+    //hard stop diagnostics
+    float fault_err;
 
 };
+
+
 
 int main(){
     return 0;
