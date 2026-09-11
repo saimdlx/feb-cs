@@ -46,7 +46,9 @@ struct BatteryVitals {
     const static float MIN_TEMP_DISCHARGE = -20;
     const static float MAX_TEMP_DISCHARGE = 60;
     const static float PRECHARGER_TIMEOUT = 2000;
+    const static float SHUTDOWN_TIMEOUT = 5000;
     const static float CURRENT_DROP_THRESHOLD = 0.5;
+    const static float SAFE_INVERTER_THRESHOLD = 60;
 
     //vital variables
     float curr_volt;
@@ -75,7 +77,7 @@ struct BatteryVitals {
     Ideally, this is paired with some sort of a heartbeat system (a fast one) so to not miss crucial updates on the batteries vitals.
     The inputs are the current state, "currState", and the vitals of our car by reference (evaluate the struct).
 */
-BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVitals){
+BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
     /*
         Place global safety checks here, ABSOLUTE checks.
     */
@@ -135,6 +137,7 @@ BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVi
             return CHARGE;
         case DRIVE:
             if (currVitals.stop_cmd){
+                currVitals.shutdown_time = currVitals.curr_time;
                 return SHUTDOWN;
             }
             return DRIVE;
@@ -150,13 +153,13 @@ BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVi
             /*
                 Per FSAE, shutdown discharge time should be 5 seconds, anything greater returns a fault.
             */
-            if (currVitals.curr_time - currVitals.shutdown_time > 5000){
+            if (currVitals.curr_time - currVitals.shutdown_time > BatteryVitals::SHUTDOWN_TIMEOUT){
                 return SOMEFAULT;
             }
             /*
                 DC Voltage has to drop to below 60 to return to standby
             */
-            if (currVitals.curr_inverter_volt < 60.0f){
+            if (currVitals.curr_inverter_volt < BatteryVitals::SAFE_INVERTER_THRESHOLD){
                 return STANDBY;
             } 
             return SHUTDOWN;
