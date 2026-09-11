@@ -1,12 +1,11 @@
 /*
     Justification for BatteryState's
     STANDBY: Controls precharge and charge circuits, timestamps to check for errors.
-    PRECHARGE: Controls precharge progress and closes upon completion to move states.
+    PRECHARGE: Controls precharge progress, relay to charge battery to safe threshold until standby.
     CHARGE: Safety checks the charging process for faults until a safe standby is met.
     DRIVE: State maintained until shutdown command is sent, can and should be altered for faults.
-    SHUTDOWN: Proc's discharge protocol, opens drainage relays.
+    SHUTDOWN: Activates discharge protocol, opens discharge path using shutdown circuit
     SOMEFAULT: Confirgurable error code manager that forces all relays and circuits to drain
-
 */
 
 enum BatteryState {
@@ -22,7 +21,7 @@ enum BatteryState {
 struct BatteryVitals {
     /*
         These values were taken from the provided cell-battery manual, or the FSAE handbook. To stick with a no-AI
-        approach, I referred to those two and reddit for any value suggestions.
+        approach, I referred to the data sheet and FSAE EV regulations as best as possible.
     */
     const static float MAX_VOLT = 4.2;
     const static float MIN_VOLT = 2.8;
@@ -39,7 +38,10 @@ struct BatteryVitals {
         The precharge sequence needs to be 90% of the pack value, not one cell. hv battery is 600 volts
     */
     /*
-        curr_volt is per cell battery, inverter_volt is used to manage precharge logic.
+        curr_volt is per cell battery
+        curr_current is pack current
+        curre_temp is cell temperature
+        inverter_volt is used to manage precharge logic.
     */
     float curr_volt;
     float curr_current;
@@ -120,7 +122,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
                 return DRIVE;
             }
             /*
-                The precharge state should only be able to return a different state IF the conditions above are procced, otherwise we should stay in precharge
+                The precharge state should only be able to return a different state IF the conditions above are met, otherwise we should stay in precharge
             */
             return PRECHARGE;
         case CHARGE:
@@ -145,7 +147,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             return DRIVE;
         case SOMEFAULT:
             /*
-                I think unless we verifiably clear some error command, we're still on somefault mode.
+                Unless a clear_cmd is passed the system still keeps a somefault state.
             */
             if (currVitals.clear_cmd){
                 return STANDBY;
@@ -170,5 +172,10 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
 }
 
 int main(){
+
+    
+
+
+
     return 0;
 }
