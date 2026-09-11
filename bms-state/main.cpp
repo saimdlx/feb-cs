@@ -55,9 +55,10 @@ struct BatteryVitals {
     float curr_inverter_volt; //inverter voltage should be subject to two things, timeout, and if the voltage exceeds or meets a target voltage
 
 
-    //timing variables for discharge
-    float curr_time;
-    float precharge_time;
+    //timing variables
+    unsigned int curr_time;
+    unsigned int precharge_time;
+    unsigned int shutdown_time;
 
     //inputs
     bool start_cmd;
@@ -103,7 +104,7 @@ BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVi
             break;
         case PRECHARGE:
             if (currVitals.stop_cmd){
-                return STANDBY;
+                return SHUTDOWN;
             }
             /*
                 If the precharge time and the current time exceed the max timeout, somethings wrong.
@@ -134,7 +135,7 @@ BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVi
             return CHARGE;
         case DRIVE:
             if (currVitals.stop_cmd){
-                return STANDBY;
+                return SHUTDOWN;
             }
             return DRIVE;
         case SOMEFAULT:
@@ -146,8 +147,19 @@ BatteryState transitionLogic(BatteryState currState, const BatteryVitals& currVi
             }
             return SOMEFAULT;
         case SHUTDOWN:
+            /*
+                Per FSAE, shutdown discharge time should be 5 seconds, anything greater returns a fault.
+            */
+            if (currVitals.curr_time - currVitals.shutdown_time > 5000){
+                return SOMEFAULT;
+            }
+            /*
+                DC Voltage has to drop to below 60 to return to standby
+            */
+            if (currVitals.curr_inverter_volt < 60.0f){
+                return STANDBY;
+            } 
             return SHUTDOWN;
-            
     }
     return currState;
 }
