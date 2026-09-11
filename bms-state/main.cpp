@@ -50,6 +50,7 @@ struct BatteryVitals {
     const static float SHUTDOWN_TIMEOUT = 5000;
     const static float CURRENT_DROP_THRESHOLD = 0.5;
     const static float SAFE_INVERTER_THRESHOLD = 60;
+    const static float PACK_VOLT = 600; //Mildly unsure about this value, but the precharge sequence needs to be 90% of the pack value, not one cell.
 
     //vital variables
     float curr_volt;
@@ -123,7 +124,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             /*
                 Per fsae handbook, precharger should go up to 90 percent of the battery voltage ev 5.6.1
             */
-            if (currVitals.curr_inverter_volt >= currVitals.curr_volt * 0.9){
+            if (currVitals.curr_inverter_volt >= BatteryVitals::PACK_VOLT * 0.9){
                 return DRIVE;
             }
             /*
@@ -136,7 +137,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
                 return STANDBY;
             }
             
-            if(currVitals.curr_temp > BatteryVitals::MAX_TEMP_CHARGE){
+            if(currVitals.curr_temp > BatteryVitals::MAX_TEMP_CHARGE || currVitals.curr_temp < BatteryVitals::MIN_TEMP_CHARGE){
                 return SOMEFAULT;
             }
 
