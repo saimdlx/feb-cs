@@ -24,6 +24,7 @@ Iter 3 - 9/9/2026
 
 Iter 4 - 9/10/2026
     - Enlightened by discharge and precharge logistics (thank you gene)
+    - Issue: If the provided schematic was for one cell, we need the precharge logic to adhere for the ENTIRE pack (fuck)
 
 */
 
@@ -80,11 +81,13 @@ struct BatteryVitals {
 BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
     /*
         Place global safety checks here, ABSOLUTE checks.
-    */
-    /*
         Safety precheck, if the voltage doesn't adhere to the max or min, return a fault in voltage.
+        Temperature check, if bounds are invalidated then return SOMEFAULT.
     */
     if (currVitals.curr_volt > BatteryVitals::MAX_VOLT || currVitals.curr_volt < BatteryVitals::MIN_VOLT){
+        return SOMEFAULT;
+    }
+    if (currVitals.curr_temp > BatteryVitals::MAX_TEMP_DISCHARGE || currVitals.curr_temp < BatteryVitals::MIN_TEMP_DISCHARGE){
         return SOMEFAULT;
     }
     /*
@@ -98,6 +101,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             return STANDBY;
         case STANDBY:
             if (currVitals.start_cmd){
+                currVitals.precharge_time = currVitals.curr_time;
                 return PRECHARGE;
             }
             if (currVitals.charge_cmd){
@@ -106,6 +110,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             break;
         case PRECHARGE:
             if (currVitals.stop_cmd){
+                currVitals.shutdown_time = currVitals.curr_time;
                 return SHUTDOWN;
             }
             /*
@@ -126,12 +131,16 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             */
             return PRECHARGE;
         case CHARGE:
-            //
             if (currVitals.stop_cmd){
+                currVitals.shutdown_time = currVitals.curr_time;
                 return STANDBY;
             }
-            //
-            if (currVitals.curr_volt >= (BatteryVitals::MAX_VOLT - 0.05) && currVitals.curr_current <= BatteryVitals::CURRENT_DROP_THRESHOLD){
+            
+            if(currVitals.curr_temp > BatteryVitals::MAX_TEMP_CHARGE){
+                return SOMEFAULT;
+            }
+
+            if (currVitals.curr_volt >= (BatteryVitals::MAX_VOLT) && currVitals.curr_current <= BatteryVitals::CURRENT_DROP_THRESHOLD){
                 return STANDBY;
             }
             return CHARGE;
