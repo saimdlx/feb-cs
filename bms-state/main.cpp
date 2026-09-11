@@ -134,7 +134,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
         case CHARGE:
             if (currVitals.stop_cmd){
                 currVitals.shutdown_time = currVitals.curr_time;
-                return STANDBY;
+                return SHUTDOWN;
             }
             
             if(currVitals.curr_temp > BatteryVitals::MAX_TEMP_CHARGE || currVitals.curr_temp < BatteryVitals::MIN_TEMP_CHARGE){
