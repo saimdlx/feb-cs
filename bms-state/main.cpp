@@ -22,6 +22,8 @@ Iter 3 - 9/9/2026
     - It's starting to go into crunch time, but luckily I think I have a solid implementation plan I can both explain and code using our states
       and vitals.
 
+Iter 4 - 9/10/2026
+    - Enlightened by discharge and precharge logistics (thank you gene)
 
 */
 
@@ -39,14 +41,24 @@ struct BatteryVitals {
     //constants from manual, static because we don't want them reevaluated or changed per program run, and because syntax lol
     const static float MAX_VOLT = 4.2;
     const static float MIN_VOLT = 2.8;
+    const static float MIN_TEMP_DISCHARGE;
+    const static float MAX_TEMP_DISCHARGE;
     const static float MIN_TEMP_CHARGE = 0;
     const static float MAX_TEMP_CHARGE = 45;
     const static float MIN_TEMP_DISCHARGE = -20;
     const static float MAX_TEMP_DISCHARGE = 60;
+
     //vital variables
     float curr_volt;
     float curr_current;
     float curr_temp;
+    float curr_inverter_volt; //inverter voltage should be subject to two things, timeout, and if the voltage exceeds or meets a target voltage
+
+
+    //timing variables for discharge
+    float curr_time;
+    float precharge_time;
+
     //inputs
     bool start_cmd;
     bool charge_cmd;
@@ -80,7 +92,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             if (currVitals.charge_cmd){
                 return CHARGE;
             }
-        case CHARGE:
+        case PRECHARGE:
             
             
     }
