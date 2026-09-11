@@ -1,45 +1,29 @@
 /*
-Alright, before even thinking about the code we need to figure out what the hell a BMS system is, and what states and events it could possibly
-take. 
-
-We know that state machines are traditionally programmed in a STATE and EVENT sorta manner, with a switch statement acting as the
-logic that changes and controls states.
-
-Iter 1 - 9/5/26
-    - Let's start by at least creating a programmed blueprint of what we want, that includes the states and the transitions for the battery
-    - The next steps should be trying to get some sort of input, mock or not, and test some box logic with it using functions. 
-      This could be seperate or just something we make in a class, but I prefer the functional approach.
-
-Iter 2 - 9/7/2026
-    - I want to polish what states I'll be working with before I move onto the logic for transitions, I've attempted to draw out a working
-    state machine diagram. I'll sift through the FSAE ruleset, and proq google for rules and suggestions to data types.
-
-    - I think we have a suitable state and vitals state machine, in both drawing and code.
-    - For max/min voltage and temps they can be definite. 
-      The cells we use have a safe voltage range of 2.8V - 4.2V and a comfortable temp range of up to 45degC.
-
-Iter 3 - 9/9/2026
-    - It's starting to go into crunch time, but luckily I think I have a solid implementation plan I can both explain and code using our states
-      and vitals.
-
-Iter 4 - 9/10/2026
-    - Enlightened by discharge and precharge logistics (thank you gene)
-    - Issue: If the provided schematic was for one cell, we need the precharge logic to adhere for the ENTIRE pack (fuck)
+    Justification for BatteryState's
+    STANDBY: Controls precharge and charge circuits, timestamps to check for errors.
+    PRECHARGE: Controls precharge progress and closes upon completion to move states.
+    CHARGE: Safety checks the charging process for faults until a safe standby is met.
+    DRIVE: State maintained until shutdown command is sent, can and should be altered for faults.
+    SHUTDOWN: Proc's discharge protocol, opens drainage relays.
+    SOMEFAULT: Confirgurable error code manager that forces all relays and circuits to drain
 
 */
 
 enum BatteryState {
     START,
     STANDBY,
-    PRECHARGE, //figure it out
-    DRIVE,
+    PRECHARGE,    
     CHARGE,
+    DRIVE,
     SOMEFAULT,
     SHUTDOWN
 };
 
 struct BatteryVitals {
-    //constants from manual, static because we don't want them reevaluated or changed per program run, and because syntax lol
+    /*
+        These values were taken from the provided cell-battery manual, or the FSAE handbook. To stick with a no-AI
+        approach, I referred to those two and reddit for any value suggestions.
+    */
     const static float MAX_VOLT = 4.2;
     const static float MIN_VOLT = 2.8;
     const static float MIN_TEMP_CHARGE = 0;
@@ -50,14 +34,20 @@ struct BatteryVitals {
     const static float SHUTDOWN_TIMEOUT = 5000;
     const static float CURRENT_DROP_THRESHOLD = 0.5;
     const static float SAFE_INVERTER_THRESHOLD = 60;
-    const static float PACK_VOLT = 600; //Mildly unsure about this value, but the precharge sequence needs to be 90% of the pack value, not one cell.
-
-    //vital variables
+    const static float PACK_VOLT = 600;
+    /*
+        The precharge sequence needs to be 90% of the pack value, not one cell. hv battery is 600 volts
+    */
+    /*
+        curr_volt is per cell battery, inverter_volt is used to manage precharge logic.
+    */
     float curr_volt;
     float curr_current;
     float curr_temp;
-    float curr_inverter_volt; //inverter voltage should be subject to two things, timeout, and if the voltage exceeds or meets a target voltage
-
+    float curr_inverter_volt;
+    /*
+        Inverter voltage should be subject to two things, timeout, and if the voltage exceeds or meets a target voltage
+    */
 
     //timing variables
     unsigned int curr_time;
@@ -70,7 +60,9 @@ struct BatteryVitals {
     bool charge_cmd;
     bool clear_cmd;
 
-    //hard stop diagnostics, stored as an integer to account for error codes and such, ideally paired with actual bits?
+    /*
+        Hard stop diagnostics, stored as an integer to account for error codes and such.
+    */
     int fault_err;
 };
 
@@ -122,7 +114,7 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
             }
 
             /*
-                Per fsae handbook, precharger should go up to 90 percent of the battery voltage ev 5.6.1
+                Per fsae handbook, precharger should go up to 90 percent of the battery voltage EV 5.6.1
             */
             if (currVitals.curr_inverter_volt >= BatteryVitals::PACK_VOLT * 0.9){
                 return DRIVE;
