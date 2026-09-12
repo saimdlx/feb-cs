@@ -76,13 +76,11 @@ struct BatteryVitals {
 /*
     transitionLogic() will act as our main logic diagram, it'll verify safety checks, and perform state transfers based on vital data.
     Ideally, this is paired with some sort of a heartbeat system (a fast one) so to not miss crucial updates on the batteries vitals.
-    The inputs are the current state, "currState", and the vitals of our car by reference (evaluate the struct).
+    The inputs are the current state, "currState", and the vitals of our BMS (evaluate the struct).
 */
 BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
     /*
-        Place global safety checks here, ABSOLUTE checks.
-        Safety precheck, if the voltage doesn't adhere to the max or min, return a fault in voltage.
-        Temperature check, if bounds are invalidated then return SOMEFAULT.
+        Place global safety checks here
     */
     if (currVitals.curr_volt > BatteryVitals::MAX_VOLT || currVitals.curr_volt < BatteryVitals::MIN_VOLT){
         return SOMEFAULT;
@@ -295,17 +293,27 @@ void test_charge_logic(){
     BatteryVitals chargev = great_vitals();
     chargev.charge_cmd = true;
 
+    /*
+        Ensure that charge_cmd in STANDBY activates charge state
+    */
     BatteryState states = transitionLogic(BatteryState::STANDBY, chargev);
-    assert(states == BatteryState::CHARGE); //ensure that charge_cmd in STANDBY activates charge state
+    assert(states == BatteryState::CHARGE); 
 
+    /*
+        Charging is possible with acceptable current within drop threshold
+    */
     chargev.charge_cmd = false;
-    chargev.curr_current = 15.0;            //charging is possible with acceptable current within drop threshold
+    chargev.curr_current = 15.0;           
     states = transitionLogic(states, chargev);
     assert(states == BatteryState::CHARGE);
 
+    /*
+        Current drops to under threshold, charging complete
+    */
+
     chargev.curr_current = 0.4;
     chargev.curr_volt = 4.2;
-    states = transitionLogic(states, chargev); //current drops to under threshold, charging complete
+    states = transitionLogic(states, chargev); 
     assert(states == BatteryState::STANDBY);
 
     std::cout << "CHARGE Path test cases passed" << std::endl;
