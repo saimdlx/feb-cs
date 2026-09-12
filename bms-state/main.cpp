@@ -7,6 +7,11 @@
     SHUTDOWN: Activates discharge protocol, opens discharge path using shutdown circuit
     SOMEFAULT: Confirgurable error code manager that forces all relays and circuits to drain
 */
+#include <iostream>
+#include <cassert> 
+/*
+    Using standard assert library to ensure our state transitions go as planned.
+*/
 
 enum BatteryState {
     START,
@@ -23,17 +28,17 @@ struct BatteryVitals {
         These values were taken from the provided cell-battery manual, or the FSAE handbook. To stick with a no-AI
         approach, I referred to the data sheet and FSAE EV regulations as best as possible.
     */
-    const static float MAX_VOLT = 4.2;
-    const static float MIN_VOLT = 2.8;
-    const static float MIN_TEMP_CHARGE = 0;
-    const static float MAX_TEMP_CHARGE = 45;
-    const static float MIN_TEMP_DISCHARGE = -20;
-    const static float MAX_TEMP_DISCHARGE = 60;
-    const static float PRECHARGER_TIMEOUT = 2000;
-    const static float SHUTDOWN_TIMEOUT = 5000;
-    const static float CURRENT_DROP_THRESHOLD = 0.5;
-    const static float SAFE_INVERTER_THRESHOLD = 60;
-    const static float PACK_VOLT = 600;
+    constexpr static float MAX_VOLT = 4.2;
+    constexpr static float MIN_VOLT = 2.8;
+    constexpr static float MIN_TEMP_CHARGE = 0;
+    constexpr static float MAX_TEMP_CHARGE = 45;
+    constexpr static float MIN_TEMP_DISCHARGE = -20;
+    constexpr static float MAX_TEMP_DISCHARGE = 60;
+    constexpr static float PRECHARGER_TIMEOUT = 2000;
+    constexpr static float SHUTDOWN_TIMEOUT = 5000;
+    constexpr static float CURRENT_DROP_THRESHOLD = 0.5;
+    constexpr static float SAFE_INVERTER_THRESHOLD = 60;
+    constexpr static float PACK_VOLT = 600;
     /*
         The precharge sequence needs to be 90% of the pack value, not one cell. hv battery is 600 volts
     */
@@ -171,11 +176,114 @@ BatteryState transitionLogic(BatteryState currState, BatteryVitals& currVitals){
     return currState;
 }
 
+BatteryVitals great_vitals(){
+    BatteryVitals goodv;
+    goodv.curr_volt = 3.8;
+    goodv.curr_current = 0;
+    goodv.curr_temp = 25;
+    goodv.curr_inverter_volt = 0;
+    goodv.curr_time = 1000;
+    goodv.precharge_time = 0;
+    goodv.shutdown_time = 0;
+    goodv.start_cmd = false;
+    goodv.charge_cmd = false;
+    goodv.stop_cmd = false;
+    goodv.fault_err = 0;
+    return goodv;
+};
+
+void test_great_vitals(){
+    std::cout << "Testing GREAT Vitals" << std::endl;
+    BatteryVitals test = great_vitals();
+    BatteryState states = START;
+
+    states = transitionLogic(states, test);
+    assert(states == STANDBY);
+
+    test.start_cmd = true;
+    states = transitionLogic(states, test);
+    assert(states == PRECHARGE);
+    assert(test.precharge_time == 1000);
+
+    test.start_cmd = false;
+    test.curr_time = 1500; 
+    test.curr_inverter_volt = 540;
+    states = transitionLogic(states, test);
+    assert(states == DRIVE);
+
+    test.stop_cmd = true;
+    test.curr_time = 2000;
+    states = transitionLogic(states, test);
+    assert(states == SHUTDOWN);
+    assert(test.shutdown_time == 2000);
+
+    test.stop_cmd = false;
+    test.curr_time = 3000;
+    test.curr_inverter_volt = 20;
+    states = transitionLogic(states, test);
+    assert(states == STANDBY);
+
+    std::cout << "GREAT Vitals test cases passed" << std::endl;
+};
+
+void test_bad_vitals(){
+    std::cout << "Testing BAD Vitals" << std::endl;
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_volt = 4.25; //overvolted
+        BatteryState state = transitionLogic(BatteryState::DRIVE, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_volt = 2.25; //undervolted
+        BatteryState state = transitionLogic(BatteryState::DRIVE, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_current = 10.0; //preventing early cuttoff due to voltage
+        badv.curr_temp = 46.0; //exceeding max temperature
+        BatteryState state = transitionLogic(BatteryState::CHARGE, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }    
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_current = 10; //preventing early cuttoff due to voltage
+        badv.curr_temp = -1.0; //exceeding min temperature
+        BatteryState state = transitionLogic(BatteryState::CHARGE, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    {
+        BatteryVitals badv = great_vitals();
+        badv.start_cmd = true;
+        badv.curr_time = 2500;
+        badv.precharge_time = 0;
+        badv.curr_inverter_volt = 300; //Precharges failed
+        BatteryState state = transitionLogic(BatteryState::PRECHARGE, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_time = 6000;
+        badv.shutdown_time = 0;
+        badv.curr_inverter_volt = 150; //Failed to discharge below safe inverter threshold
+        BatteryState state = transitionLogic(BatteryState::SHUTDOWN, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    {
+        BatteryVitals badv = great_vitals();
+        badv.curr_volt = 4.5;
+        badv.clear_cmd = true; //attempt to clear error state WITHOUT addressing overvoltage fault
+        BatteryState state = transitionLogic(BatteryState::SOMEFAULT, badv);
+        assert(state == BatteryState::SOMEFAULT);
+    }
+    std::cout << "BAD Vitals test cases passed" << std::endl;
+};
+
+
 int main(){
-
-    
-
-
-
+    test_great_vitals();
+    test_bad_vitals();
     return 0;
 }
