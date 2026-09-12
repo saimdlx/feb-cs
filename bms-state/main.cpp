@@ -188,6 +188,7 @@ BatteryVitals great_vitals(){
     goodv.start_cmd = false;
     goodv.charge_cmd = false;
     goodv.stop_cmd = false;
+    goodv.clear_cmd = false;
     goodv.fault_err = 0;
     return goodv;
 };
@@ -221,6 +222,13 @@ void test_great_vitals(){
     test.curr_time = 3000;
     test.curr_inverter_volt = 20;
     states = transitionLogic(states, test);
+    assert(states == STANDBY);
+
+    /*
+    State specific block to check for explicit error code clearance.
+    */
+    test.clear_cmd = true;
+    states = transitionLogic(BatteryState::SOMEFAULT, test);
     assert(states == STANDBY);
 
     std::cout << "GREAT Vitals test cases passed" << std::endl;
