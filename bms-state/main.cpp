@@ -289,9 +289,31 @@ void test_bad_vitals(){
     std::cout << "BAD Vitals test cases passed" << std::endl;
 };
 
+void test_charge_logic(){
+    std::cout << "Testing CHARGE PATH cases" << std::endl;
+
+    BatteryVitals chargev = great_vitals();
+    chargev.charge_cmd = true;
+
+    BatteryState states = transitionLogic(BatteryState::STANDBY, chargev);
+    assert(states == BatteryState::CHARGE); //ensure that charge_cmd in STANDBY activates charge state
+
+    chargev.charge_cmd = false;
+    chargev.curr_current = 15.0;            //charging is possible with acceptable current within drop threshold
+    states = transitionLogic(states, chargev);
+    assert(states == BatteryState::CHARGE);
+
+    chargev.curr_current = 0.4;
+    chargev.curr_volt = 4.2;
+    states = transitionLogic(states, chargev); //current drops to under threshold, charging complete
+    assert(states == BatteryState::STANDBY);
+
+    std::cout << "CHARGE Path test cases passed" << std::endl;
+}
 
 int main(){
     test_great_vitals();
     test_bad_vitals();
+    test_charge_logic();
     return 0;
 }
